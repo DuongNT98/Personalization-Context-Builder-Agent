@@ -1,0 +1,43 @@
+# Runtime parameters — loaded by AgentRegistry, passed as Graph(config=...).
+# This is a SEPARATE file from config/agent.yaml (the static manifest): agent.yaml
+# is AgentRegistry's discovery entry point, this file is the agent's own runtime
+# config, keyed by whatever your Graph/node code reads via self.config.get(...).
+#
+# No memory_enabled / hitl here — this template is a single-turn, non-HITL
+# pipeline (see docs/02_design.md); a checkpointer is not compiled.
+
+max_retry: 3
+timeout_s: 30
+
+# ── Domain runtime config (threaded to nodes via Graph.register_nodes()) ─────
+# Keys below are read directly by src/services/service.py::merge_config() —
+# top-level, not nested under a "domain:" key (that nesting was v1-only and
+# never actually reached the graph; see docs/02_design.md migration note).
+event_types:
+  - name: "product_view"
+    interest_weight: 0.3
+  - name: "purchase"
+    interest_weight: 1.0
+    recency_boost: 2.0
+  - name: "search"
+    interest_weight: 0.5
+
+scoring_weights:
+  recency: 0.4
+  frequency: 0.3
+  engagement_depth: 0.3
+
+cdp_integration:
+  treasure_data: true   # preferred CDP sink for the Japanese market (mock writer in v1)
+  segment: false
+  amplitude: false
+
+context_ttl_hours: 24
+top_n_topics: 5
+
+# Azure OpenAI (main's real LLM — interest/price-sensitivity/channel
+# inference) is NOT configured here: api_key, azure_endpoint, and
+# azure_deployment are all declared secrets (agent.yaml requires.secrets),
+# resolved via ctx.secrets.require(...) inside main_node.py's execute(). A
+# missing secret or an LLM-call failure degrades to the deterministic
+# heuristic — it does not fail the pipeline.
